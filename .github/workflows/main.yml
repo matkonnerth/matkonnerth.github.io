@@ -22,5 +22,4 @@ jobs:
       env:
         JEKYLL_PAT: ${{ secrets.JEKYLL_PAT }}
       with:
-        jekyll_src: 'sample_site'
-        gem_src: 'sample_site'  
+        jekyll_src: 'sample-site'
