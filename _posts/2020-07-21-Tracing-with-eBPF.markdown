@@ -9,7 +9,12 @@ categories: linux
 This blog post gives an overview of how to trace down the way of an udp packet from calling sendto in userspace till the packet is finally transmitted. 
 
 ## eBPF
-For tracing eBPF is used. eBPF is an in kernel virtual machine and fulfills various use cases, for example network packet filtering or tracing. There are various ressources about eBPF available, I've listed some of them in the ressources section.
+eBPF is the abbreviation for extended Berkeley Packet Filter. For tracing eBPF is used. eBPF is an in kernel virtual machine and fulfills various use cases, for example network packet filtering or tracing. There are various ressources about eBPF available, I've listed some of them in the ressources section.
+
+### BPFTrace
+![bpftrace overview](http://www.brendangregg.com/blog/images/2018/bpftrace_internals_2018.png)
+
+For writing and downloading to the kernel BPF the trace program, bpftrace is used. BPFTrace programs are written in a high level language (if you consider C a high level language ;))
 
 ## Probe types
 
@@ -17,10 +22,35 @@ eBPF supports different probe types, here is a list of the important ones:
 * tracepoints: are static, compiled into the kernel. System calls are instrumented with them.
 * kprobe: are dynamic, kernel functions can be instrumented at runtime with them.
 * uprobe: like kprobe also dynamic, but for user space
+* USDT (user level static defined tracing): a user space version of tracepoints
+
+Dynamic instrumentation (like kprobes and uprobes) costs zero overhead, when not in use.
+
+### Looking up probes
+
+Probes can be looked up with _bpftrace -lv "*nameOfProbe*"_ for example:
+{% highlight bash %}
+sudo bpftrace -lv "*sendto*"
+
+tracepoint:syscalls:sys_enter_sendto
+    int __syscall_nr;
+    int fd;
+    void * buff;
+    size_t len;
+    unsigned int flags;
+    struct sockaddr * addr;
+    int addr_len;
+tracepoint:syscalls:sys_exit_sendto
+    int __syscall_nr;
+    long ret;
+kprobe:__sys_sendto
+{% endhighlight %}
+
+Tracepoints also return there parameters.
 
 ## Prerequisites
 
-eBPF requires a linux kernel >=4.x compiled with this config options. There is a [script](https://github.com/iovisor/bpftrace/tree/master/scripts) called _check_kernel_features_ in  whick checks if the requirements are fullfiled.
+eBPF for this examples requires a linux kernel >=4.x compiled with this config options, I've run the examples on a 4.19 kernel. There is a [script](https://github.com/iovisor/bpftrace/tree/master/scripts) called _check_kernel_features_ in  whick checks if the requirements are fullfiled.
 
 # Way of an UDP packet through kernel
 
@@ -68,9 +98,10 @@ High level view on network data and possible tracepoints
 
 BPFTrace is used to write this latency tracing program, it can be found [here](https://github.com/matkonnerth/bpfExamples/blob/master/udp_sendto.bt)
 
-sendto and ip_send_skb are called in the context of the user space thread, consume_skb is called in context of an kernel thread. We save the time when the sendto system call is called, associate it with the socket buffer in kprobe:ip_send_skb and calculate the difference in tracepoint:skb:consume_skb.
+sendto and ip_send_skb are called in process context, consume_skb is called in context of an kernel thread. We save the time when the sendto system call is called, associate it with the socket buffer in kprobe:ip_send_skb and calculate the difference in tracepoint:skb:consume_skb.
 
 # Ressources
 * [the bpftrace program for udp_sendto latency tracing](https://github.com/matkonnerth/bpfExamples/blob/master/udp_sendto.bt)
 * [BPFTrace reference guide](https://github.com/iovisor/bpftrace/blob/master/docs/reference_guide.md)
+* [bpftrace source](https://github.com/iovisor/bpftrace)
 * [BPF Performance tools from Brendan Gregg](http://www.brendangregg.com/bpf-performance-tools-book.html)
