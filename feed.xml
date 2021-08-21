@@ -1,0 +1,117 @@
+<?xml version="1.0" encoding="utf-8"?><feed xmlns="http://www.w3.org/2005/Atom" ><generator uri="https://jekyllrb.com/" version="4.1.1">Jekyll</generator><link href="matkonnerth.github.io/feed.xml" rel="self" type="application/atom+xml" /><link href="matkonnerth.github.io/" rel="alternate" type="text/html" /><updated>2021-08-21T10:26:53+00:00</updated><id>matkonnerth.github.io/feed.xml</id><title type="html">matkonnerth</title><subtitle>private blog of matkonnerth.</subtitle><entry><title type="html">C++ virtual methods</title><link href="matkonnerth.github.io/cpp/2021/08/21/Virtuality-Cpp.html" rel="alternate" type="text/html" title="C++ virtual methods" /><published>2021-08-21T07:54:21+00:00</published><updated>2021-08-21T07:54:21+00:00</updated><id>matkonnerth.github.io/cpp/2021/08/21/Virtuality-Cpp</id><content type="html" xml:base="matkonnerth.github.io/cpp/2021/08/21/Virtuality-Cpp.html">&lt;h1 id=&quot;introduction&quot;&gt;Introduction&lt;/h1&gt;
+
+&lt;p&gt;One of the technical options to support polymorphie in C++ are virtual methods. This blog post gives an overview of how to use them, how they are implemented by compilers and what are the performance implications of using them.&lt;/p&gt;
+
+&lt;h2 id=&quot;small-example&quot;&gt;Small example&lt;/h2&gt;
+
+&lt;p&gt;class Shape
+{
+    virtual double caculateSize() = 0;
+    virtual ~Shape()=default;
+};&lt;/p&gt;
+
+&lt;h1 id=&quot;ressources&quot;&gt;Ressources&lt;/h1&gt;
+&lt;ul&gt;
+  &lt;li&gt;&lt;a href=&quot;https://github.com/matkonnerth/bpfExamples/blob/master/udp_sendto.bt&quot;&gt;the bpftrace program for udp_sendto latency tracing&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;</content><author><name></name></author><category term="cpp" /><summary type="html">Introduction</summary></entry><entry><title type="html">UDP packet tracing with eBPF</title><link href="matkonnerth.github.io/linux/2020/07/21/Tracing-with-eBPF.html" rel="alternate" type="text/html" title="UDP packet tracing with eBPF" /><published>2020-07-21T07:54:21+00:00</published><updated>2020-07-21T07:54:21+00:00</updated><id>matkonnerth.github.io/linux/2020/07/21/Tracing-with-eBPF</id><content type="html" xml:base="matkonnerth.github.io/linux/2020/07/21/Tracing-with-eBPF.html">&lt;h1 id=&quot;introduction&quot;&gt;Introduction&lt;/h1&gt;
+
+&lt;p&gt;This blog post gives an overview of how to trace down the way of an udp packet from calling sendto in userspace till the packet is finally transmitted.&lt;/p&gt;
+
+&lt;h2 id=&quot;ebpf&quot;&gt;eBPF&lt;/h2&gt;
+&lt;p&gt;eBPF is the abbreviation for extended Berkeley Packet Filter. For tracing eBPF is used. eBPF is an in kernel virtual machine and fulfills various use cases, for example network packet filtering or tracing. There are various ressources about eBPF available, I’ve listed some of them in the ressources section.&lt;/p&gt;
+
+&lt;h3 id=&quot;bpftrace&quot;&gt;BPFTrace&lt;/h3&gt;
+&lt;p&gt;&lt;img src=&quot;http://www.brendangregg.com/blog/images/2018/bpftrace_internals_2018.png&quot; alt=&quot;bpftrace overview&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;For writing and downloading to the kernel BPF the trace program, bpftrace is used. BPFTrace programs are written in a high level language (if you consider C a high level language ;))&lt;/p&gt;
+
+&lt;h2 id=&quot;probe-types&quot;&gt;Probe types&lt;/h2&gt;
+
+&lt;p&gt;eBPF supports different probe types, here is a list of the important ones:&lt;/p&gt;
+&lt;ul&gt;
+  &lt;li&gt;tracepoints: are static, compiled into the kernel. System calls are instrumented with them.&lt;/li&gt;
+  &lt;li&gt;kprobe: are dynamic, kernel functions can be instrumented at runtime with them.&lt;/li&gt;
+  &lt;li&gt;uprobe: like kprobe also dynamic, but for user space&lt;/li&gt;
+  &lt;li&gt;USDT (user level static defined tracing): a user space version of tracepoints&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;Dynamic instrumentation (like kprobes and uprobes) costs zero overhead, when not in use.&lt;/p&gt;
+
+&lt;h3 id=&quot;looking-up-probes&quot;&gt;Looking up probes&lt;/h3&gt;
+
+&lt;p&gt;Probes can be looked up with &lt;em&gt;bpftrace -lv “*nameOfProbe*“&lt;/em&gt; for example:&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-bash&quot; data-lang=&quot;bash&quot;&gt;&lt;span class=&quot;nb&quot;&gt;sudo &lt;/span&gt;bpftrace &lt;span class=&quot;nt&quot;&gt;-lv&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&quot;*sendto*&quot;&lt;/span&gt;
+
+tracepoint:syscalls:sys_enter_sendto
+    int __syscall_nr&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+    int fd&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+    void &lt;span class=&quot;k&quot;&gt;*&lt;/span&gt; buff&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+    size_t len&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+    unsigned int flags&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+    struct sockaddr &lt;span class=&quot;k&quot;&gt;*&lt;/span&gt; addr&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+    int addr_len&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+tracepoint:syscalls:sys_exit_sendto
+    int __syscall_nr&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+    long ret&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+kprobe:__sys_sendto&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;Tracepoints also return there parameters.&lt;/p&gt;
+
+&lt;h2 id=&quot;prerequisites&quot;&gt;Prerequisites&lt;/h2&gt;
+
+&lt;p&gt;eBPF for this examples requires a linux kernel &amp;gt;=4.x compiled with this config options, I’ve run the examples on a 4.19 kernel. There is a &lt;a href=&quot;https://github.com/iovisor/bpftrace/tree/master/scripts&quot;&gt;script&lt;/a&gt; called &lt;em&gt;check_kernel_features&lt;/em&gt; in  whick checks if the requirements are fullfiled.&lt;/p&gt;
+
+&lt;h1 id=&quot;way-of-an-udp-packet-through-kernel&quot;&gt;Way of an UDP packet through kernel&lt;/h1&gt;
+
+&lt;h2 id=&quot;generating-traffic&quot;&gt;Generating traffic&lt;/h2&gt;
+&lt;p&gt;For generating udp traffic, &lt;a href=&quot;https://github.com/open62541/open62541/tree/master/examples/pubsub&quot;&gt;open62541&lt;/a&gt; is used. OPC UA supports the publish-subscribe pattern over different encodings and transport, one of them is binary encoding over udp. I’ve used the tutorial_pubsub_publish for generating udp packets. Simply clone the repo and build with examples enabled and start the publisher.&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-bash&quot; data-lang=&quot;bash&quot;&gt;git clone https://github.com/open62541/open62541.git
+&lt;span class=&quot;nb&quot;&gt;cd &lt;/span&gt;open62541
+&lt;span class=&quot;nb&quot;&gt;mkdir &lt;/span&gt;build &lt;span class=&quot;o&quot;&gt;&amp;amp;&amp;amp;&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;cd &lt;/span&gt;build
+cmake &lt;span class=&quot;nt&quot;&gt;-DUA_BUILD_EXAMPLES&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;ON &lt;span class=&quot;nt&quot;&gt;-DUA_ENABLE_PUBSUB&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;ON ..
+make &lt;span class=&quot;nt&quot;&gt;-j&lt;/span&gt;
+bin/examples/tutorial_pubsub_publish&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;So, now the publisher should run. We can inspect this with the perf command and taking a look on the system calls of the publisher:&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-bash&quot; data-lang=&quot;bash&quot;&gt;pidof tutorial_pubsub_publish
+20488
+&lt;span class=&quot;nb&quot;&gt;sudo &lt;/span&gt;perf trace &lt;span class=&quot;nt&quot;&gt;-p&lt;/span&gt; 20488
+- 949.690 &lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;50.166 ms&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt;: &lt;span class=&quot;k&quot;&gt;select&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;n: 6, inp: 0x7ffc4b80af50, exp: 0x7ffc4b80aed0, tvp: 0x7ffc4b80aeb0&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; 0 Timeout
+- 999.875 &lt;span class=&quot;o&quot;&gt;(&lt;/span&gt; 0.005 ms&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt;: clock_gettime&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;which_clock: MONOTONIC_RAW, tp: 0x7ffc4b80ae20          &lt;span class=&quot;o&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; 0
+- 999.886 &lt;span class=&quot;o&quot;&gt;(&lt;/span&gt; 0.003 ms&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt;: clock_gettime&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;which_clock: MONOTONIC_RAW, tp: 0x7ffc4b80b040          &lt;span class=&quot;o&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; 0
+- 999.894 &lt;span class=&quot;o&quot;&gt;(&lt;/span&gt; 0.004 ms&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt;: clock_gettime&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;which_clock: MONOTONIC_RAW, tp: 0x7ffc4b80b040          &lt;span class=&quot;o&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; 0
+- 999.931 &lt;span class=&quot;o&quot;&gt;(&lt;/span&gt; 0.083 ms&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt;: sendto&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;fd: 3&amp;lt;socket:[452663]&amp;gt;, buff: 0x7ffc4b80acb0, len: 39, addr: 0x55cab43df720, addr_len: 128&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; 39&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;We see that we get some clock_gettime, a select and the sendto systemcall.
+What we are interested, is the latency of the sendto systemcall, that means the delay from the sendto call and when the datagram leaves the network interface. For that, we have to know a little bit about how linux kernel networking works.&lt;/p&gt;
+
+&lt;p&gt;High level view on network data and possible tracepoints&lt;/p&gt;
+&lt;ol&gt;
+  &lt;li&gt;user space: UA_WriterGroup_publishCallback&lt;/li&gt;
+  &lt;li&gt;system call (sendto, sendmsg, …)                                                                       tracepoint:syscalls:sys_enter_sendto&lt;/li&gt;
+  &lt;li&gt;socket subsystem&lt;/li&gt;
+  &lt;li&gt;Protocol layers, in our case UDP and IP                                                                  kprobe:ip_send_skb&lt;/li&gt;
+  &lt;li&gt;Device agnostic layer&lt;/li&gt;
+  &lt;li&gt;device drivers transmit function is called&lt;/li&gt;
+  &lt;li&gt;data is passed on to the queue discipline (qdisc)&lt;/li&gt;
+  &lt;li&gt;data is transmitted directly or it is queued and sent during NET_TX softirq&lt;/li&gt;
+  &lt;li&gt;once transmission is complete, net device raises interrupt to signal transmit completion&lt;/li&gt;
+  &lt;li&gt;packet data is freed                                                                                     tracepoint:skb:consume_skb&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;h2 id=&quot;bpftrace-program&quot;&gt;bpftrace program&lt;/h2&gt;
+
+&lt;p&gt;BPFTrace is used to write this latency tracing program, it can be found &lt;a href=&quot;https://github.com/matkonnerth/bpfExamples/blob/master/udp_sendto.bt&quot;&gt;here&lt;/a&gt;&lt;/p&gt;
+
+&lt;p&gt;sendto and ip_send_skb are called in process context, consume_skb is called in context of an kernel thread. We save the time when the sendto system call is called, associate it with the socket buffer in kprobe:ip_send_skb and calculate the difference in tracepoint:skb:consume_skb.&lt;/p&gt;
+
+&lt;h1 id=&quot;ressources&quot;&gt;Ressources&lt;/h1&gt;
+&lt;ul&gt;
+  &lt;li&gt;&lt;a href=&quot;https://github.com/matkonnerth/bpfExamples/blob/master/udp_sendto.bt&quot;&gt;the bpftrace program for udp_sendto latency tracing&lt;/a&gt;&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;https://github.com/iovisor/bpftrace/blob/master/docs/reference_guide.md&quot;&gt;BPFTrace reference guide&lt;/a&gt;&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;https://github.com/iovisor/bpftrace&quot;&gt;bpftrace source&lt;/a&gt;&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;http://www.brendangregg.com/bpf-performance-tools-book.html&quot;&gt;BPF Performance tools from Brendan Gregg&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;</content><author><name></name></author><category term="linux" /><summary type="html">Introduction</summary></entry></feed>
