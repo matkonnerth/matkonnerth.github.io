@@ -10,7 +10,11 @@ One of the technical options to support polymorphie in C++ are virtual methods. 
 
 ## Small example
 
-
+class Shape
+{
+    virtual double caculateSize() = 0;
+    virtual ~Shape()=default;
+};
 
 # Ressources
 * [the bpftrace program for udp_sendto latency tracing](https://github.com/matkonnerth/bpfExamples/blob/master/udp_sendto.bt)
